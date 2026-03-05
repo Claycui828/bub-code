@@ -20,7 +20,9 @@ from pydantic import BaseModel, Field
 from republic import ToolContext
 
 from bub.tape.service import TapeService
+from bub.tools.agent import register_agent_tools
 from bub.tools.registry import ToolRegistry
+from bub.tools.task import register_task_tools
 
 if TYPE_CHECKING:
     from bub.app.runtime import AppRuntime
@@ -476,3 +478,6 @@ def register_builtin_tools(
     def quit_command(_params: EmptyInput) -> str:
         """Request exit from interactive CLI."""
         return "exit"
+
+    register_task_tools(registry, workspace=workspace)
+    register_agent_tools(registry, runtime=runtime)
