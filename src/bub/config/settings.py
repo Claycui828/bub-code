@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     discord_command_prefix: str = "!"
     discord_proxy: str | None = None
 
+    feishu_enabled: bool = False
+    feishu_app_id: str | None = None
+    feishu_app_secret: str | None = None
+    feishu_allow_from: list[str] = Field(default_factory=list)
+    feishu_allow_chats: list[str] = Field(default_factory=list)
+
     trace_enabled: bool = False
     trace_backend: str = "langfuse"  # langfuse | otel
     langfuse_public_key: str | None = None

@@ -14,10 +14,41 @@ from typing import Any, cast
 
 from loguru import logger
 from pydantic import BaseModel, Field
-from republic import Tool, ToolContext, tool_from_model
+from republic import Tool, ToolContext
 
 # Type for live output callback: (event_type, data)
 LiveCallback = Callable[[str, dict[str, Any]], None]
+
+
+def _safe_tool_from_model(
+    model: type[BaseModel],
+    handler: Callable[..., Any],
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    context: bool = False,
+) -> Tool:
+    """Like republic.tool_from_model but strips None-valued kwargs before Pydantic validation.
+
+    Models often send explicit null for optional params (e.g. agent_type=null).
+    Without stripping, these override Pydantic defaults and may cause unexpected behavior.
+    """
+
+    def _handler(*args: Any, **kwargs: Any) -> Any:
+        tool_context = kwargs.pop("context", None)
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
+        parsed = model(*args, **kwargs)
+        if context:
+            return handler(parsed, context=tool_context)
+        return handler(parsed)
+
+    return Tool(
+        name=name or model.__name__,
+        description=description if description is not None else (model.__doc__ or ""),
+        parameters=model.model_json_schema(),
+        handler=_handler,
+        context=context,
+    )
 
 
 def _shorten_text(text: str, width: int = 30, placeholder: str = "...") -> str:
@@ -164,7 +195,7 @@ class ToolRegistry:
 
             if model is not None:
                 extended_model = _ensure_description_field(model)
-                tool = tool_from_model(
+                tool = _safe_tool_from_model(
                     extended_model, handler, name=name, description=short_description, context=context
                 )
             else:
