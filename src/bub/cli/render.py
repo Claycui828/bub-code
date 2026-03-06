@@ -11,6 +11,8 @@ from rich.panel import Panel
 from rich.text import Text
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from bub.app.runtime import SessionRuntime
 
 FOLD_SUMMARY_MAX = 80
@@ -74,6 +76,8 @@ class CliRenderer:
         if handler:
             handler(self, data)
 
+    # -- main agent events --
+
     def _render_step_start(self, data: dict) -> None:
         step = data.get("step", "?")
         model = data.get("model", "")
@@ -114,30 +118,6 @@ class CliRenderer:
         if data.get("has_tool_calls", False):
             self.console.print(Text(f"  \U0001f4ad step {step}: tool calls requested", style="dim cyan"))
 
-    def _render_sub_agent_start(self, data: dict) -> None:
-        desc = data.get("description", "sub-agent")
-        agent_id = data.get("agent_id", "")
-        self._add_panel(
-            f"Sub-agent: {desc}",
-            f"agent_id: {agent_id}\nprompt: {data.get('prompt', '')}",
-            "magenta",
-            kind="sub_agent",
-            metadata={"agent_id": agent_id},
-        )
-
-    def _render_sub_agent_end(self, data: dict) -> None:
-        agent_id = data.get("agent_id", "")
-        status = data.get("status", "")
-        result = data.get("result", "")
-        style = "green" if status == "completed" else "red"
-        self._add_panel(
-            f"Sub-agent {agent_id} [{status}]",
-            result or "(no output)",
-            style,
-            kind="sub_agent",
-            metadata={"agent_id": agent_id, "status": status},
-        )
-
     def _render_tape_anchor(self, data: dict) -> None:
         name = data.get("name", "")
         summary = data.get("summary", "")
@@ -152,6 +132,69 @@ class CliRenderer:
         reason = data.get("reason", "")
         self.console.print(Text(f"  \u23f8 paused after step {step} ({reason})", style="bold yellow"))
 
+    # -- sub-agent events (streaming box display) --
+
+    def _render_sub_agent_start(self, data: dict) -> None:
+        agent_id = data.get("agent_id", "?")
+        agent_type = data.get("agent_type", "general")
+        desc = data.get("description", "sub-agent")
+        prompt_preview = _truncate(data.get("prompt", ""), 80)
+        self.console.print(Text(f"  \u250c {agent_id} [{agent_type}]: {desc}", style="bold magenta"))
+        if prompt_preview:
+            self.console.print(Text(f"  \u2502 {agent_id}  prompt: {prompt_preview}", style="dim magenta"))
+
+    def _render_sub_agent_end(self, data: dict) -> None:
+        agent_id = data.get("agent_id", "")
+        status = data.get("status", "")
+        result = data.get("result", "")
+        style = "green" if status == "completed" else "red"
+        self.console.print(Text(f"  \u2514 {agent_id} [{status}]", style=style))
+        # Store full result as a foldable panel for later reference.
+        if result:
+            self._add_panel(
+                f"Result: {agent_id} [{status}]",
+                result,
+                style,
+                kind="sub_agent",
+                metadata={"agent_id": agent_id, "status": status},
+            )
+
+    def _render_sub_agent_step(self, data: dict) -> None:
+        agent_id = data.get("agent_id", "?")
+        step = data.get("step", "?")
+        self.console.print(Text(f"  \u2502 {agent_id}  \u27f3 step {step}", style="dim magenta"))
+
+    def _render_sub_agent_tool_start(self, data: dict) -> None:
+        agent_id = data.get("agent_id", "?")
+        name = data.get("name", "?")
+        args_summary = data.get("args_summary", "")
+        self.console.print(Text(f"  \u2502 {agent_id}  \U0001f527 {name}: {args_summary}", style="dim green"))
+
+    def _render_sub_agent_tool_end(self, data: dict) -> None:
+        agent_id = data.get("agent_id", "?")
+        name = data.get("name", "?")
+        status = data.get("status", "ok")
+        elapsed = data.get("elapsed_ms", 0)
+        preview = data.get("output_preview", "")
+        sym_style, symbol = ("green", "\u2713") if status == "ok" else ("red", "\u2717")
+        line = f"  \u2502 {agent_id}  {symbol} {name} ({elapsed:.0f}ms)"
+        if preview:
+            line += f" \u2014 {preview}"
+        self.console.print(Text(line, style=sym_style))
+
+    def _render_sub_agent_tool_error(self, data: dict) -> None:
+        agent_id = data.get("agent_id", "?")
+        name = data.get("name", "?")
+        error = data.get("error", "")
+        self.console.print(Text(f"  \u2502 {agent_id}  \u2717 {name}: {error}", style="bold red"))
+
+    def _render_sub_agent_think(self, data: dict) -> None:
+        agent_id = data.get("agent_id", "?")
+        step = data.get("step", "?")
+        self.console.print(Text(f"  \u2502 {agent_id}  \U0001f4ad thinking... (step {step})", style="dim magenta"))
+
+    # -- event handler map --
+
     _LIVE_HANDLERS: ClassVar[dict[str, Callable[[CliRenderer, dict], None]]] = {
         "step.start": _render_step_start,
         "user.injected": _render_user_injected,
@@ -162,6 +205,11 @@ class CliRenderer:
         "think.end": _render_think_end,
         "sub_agent.start": _render_sub_agent_start,
         "sub_agent.end": _render_sub_agent_end,
+        "sub_agent.step.start": _render_sub_agent_step,
+        "sub_agent.tool.start": _render_sub_agent_tool_start,
+        "sub_agent.tool.end": _render_sub_agent_tool_end,
+        "sub_agent.tool.error": _render_sub_agent_tool_error,
+        "sub_agent.think.start": _render_sub_agent_think,
         "tape.anchor": _render_tape_anchor,
         "step.paused": _render_step_paused,
     }
@@ -280,6 +328,28 @@ class CliRenderer:
         tape_name = getattr(info, "name", None) or getattr(session.tape, "_tape_name", "?")
         lines.append(f"  Tape: {tape_name}")
         self.console.print(Panel("\n".join(lines), title="Context", border_style="yellow"))
+
+    def render_tasks(self, workspace: Path) -> None:
+        """Render task list panel."""
+        from bub.tools.task import _load_tasks
+
+        tasks = _load_tasks(workspace)
+        if not tasks:
+            self.info("No tasks.")
+            return
+
+        status_symbols = {"in_progress": "\u25b6", "pending": "\u25cb", "blocked": "\u2298", "completed": "\u2713"}
+        status_order = ["in_progress", "pending", "blocked", "completed"]
+        by_status: dict[str, list[dict]] = {}
+        for task in tasks:
+            by_status.setdefault(task.get("status", "pending"), []).append(task)
+
+        lines: list[str] = []
+        for status in status_order:
+            for task in by_status.get(status, []):
+                symbol = status_symbols.get(status, "?")
+                lines.append(f"  {symbol} [{task['id']}] {task['title']}")
+        self._add_panel("Tasks", "\n".join(lines), "yellow", kind="system")
 
 
 def _truncate(text: str, max_len: int) -> str:

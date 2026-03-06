@@ -351,7 +351,7 @@ def register_agent_tools(
 
         if params.run_in_background:
             task = asyncio.create_task(
-                _run_background(runtime, manager, record, params.prompt, model, system_prompt, tool_set)
+                _run_background(runtime, manager, record, params.prompt, model, system_prompt, tool_set, emit=emit)
             )
             manager.set_background_task(agent_id, task)
             logger.info(
@@ -371,6 +371,14 @@ def register_agent_tools(
             "prompt": params.prompt,
             "model": model or "",
         })
+
+        # Pre-create session and wire live callback so sub-agent events are visible.
+        sub_session = runtime.get_session(
+            sub_session_id, model=model, system_prompt=system_prompt, allowed_tools=tool_set,
+        )
+        sub_session.model_runner.set_live_callback(
+            lambda event, data, _aid=agent_id: emit(f"sub_agent.{event}", {**data, "agent_id": _aid})
+        )
 
         result = await runtime.handle_input(
             sub_session_id,
@@ -500,8 +508,24 @@ async def _run_background(
     model: str | None,
     system_prompt: str | None,
     allowed_tools: set[str] | None,
+    *,
+    emit: object = None,
 ) -> None:
     """Execute a sub-agent in the background and update its record on completion."""
+    # Wire live callback so background sub-agent events are visible in CLI.
+    if emit is not None:
+        sub_session = runtime.get_session(
+            record.session_id, model=model, system_prompt=system_prompt, allowed_tools=allowed_tools,
+        )
+        sub_session.model_runner.set_live_callback(
+            lambda event, data, _aid=record.agent_id: emit(f"sub_agent.{event}", {**data, "agent_id": _aid})
+        )
+        emit("sub_agent.start", {
+            "agent_id": record.agent_id,
+            "agent_type": record.agent_type,
+            "description": record.description,
+            "prompt": prompt,
+        })
     try:
         result = await runtime.handle_input(
             record.session_id,
@@ -522,6 +546,14 @@ async def _run_background(
         tape_name = _get_session_tape_name(runtime, record.session_id)
         if tape_name:
             record.result = f"tape: {tape_name}\n{record.result}" if record.result else f"tape: {tape_name}"
+        if emit is not None:
+            emit("sub_agent.end", {
+                "agent_id": record.agent_id,
+                "agent_type": record.agent_type,
+                "status": record.status,
+                "result": record.result,
+                "error": record.error,
+            })
         logger.info(
             "agent.background.done agent_id={} status={} elapsed={:.1f}s",
             record.agent_id,

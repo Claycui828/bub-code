@@ -99,6 +99,7 @@ def test_command_registry_has_builtin_commands() -> None:
     assert registry.get("inject") is not None
     assert registry.get("context") is not None
     assert registry.get("step") is not None
+    assert registry.get("tasks") is not None
 
 
 def test_command_registry_aliases() -> None:
@@ -113,6 +114,7 @@ def test_command_registry_aliases() -> None:
     assert registry.get("h").name == "help"
     assert registry.get("?").name == "help"
     assert registry.get("ctx").name == "context"
+    assert registry.get("t").name == "tasks"
 
 
 def test_is_command_recognizes_slash_commands() -> None:

@@ -57,6 +57,8 @@ class CliChannel(BaseChannel[str]):
         self._agent_task: asyncio.Task[None] | None = None
         self._on_receive: Callable[[str], Awaitable[None]] | None = None
         self._last_interrupt: float = 0.0
+        self._task_cache: str = ""
+        self._task_cache_time: float = 0.0
 
         # Slash command registry.
         self._command_registry = CommandRegistry()
@@ -253,12 +255,12 @@ class CliChannel(BaseChannel[str]):
         now = datetime.now().strftime("%H:%M")
         left = f"{now}  mode:{self._mode}"
         if self._agent_running:
-            # Check for pause state.
             paused = getattr(self._session.model_runner, "_paused", False)
             if paused:
                 left += "  [paused]"
             else:
                 left += "  [running]"
+        task_summary = self._get_task_summary()
         panels_count = len(self._renderer.panels)
         right = (
             f"panels:{panels_count}  "
@@ -267,7 +269,31 @@ class CliChannel(BaseChannel[str]):
             f"anchors:{getattr(info, 'anchors', '-')} "
             f"last:{getattr(info, 'last_anchor', None) or '-'}"
         )
+        if task_summary:
+            right = f"{task_summary}  {right}"
         return FormattedText([("", f"{left}  {right}")])
+
+    def _get_task_summary(self) -> str:
+        """Read task file and return summary string, cached for 5 seconds."""
+        now = time.monotonic()
+        if now - self._task_cache_time < 5:
+            return self._task_cache
+        from bub.tools.task import _load_tasks
+
+        tasks = _load_tasks(self.runtime.workspace)
+        if not tasks:
+            result = ""
+        else:
+            done = sum(1 for t in tasks if t.get("status") == "completed")
+            active = sum(1 for t in tasks if t.get("status") == "in_progress")
+            total = len(tasks)
+            parts = [f"tasks:{done}/{total}"]
+            if active:
+                parts.append(f"active:{active}")
+            result = " ".join(parts)
+        self._task_cache = result
+        self._task_cache_time = now
+        return result
 
     def _display_user_input(self, raw: str) -> None:
         """Show user input in a compact form — collapse long pastes."""

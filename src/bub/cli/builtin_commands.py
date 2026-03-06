@@ -12,6 +12,7 @@ def register_builtin_commands(registry: CommandRegistry) -> None:
     _register_control_commands(registry)
     _register_agent_control_commands(registry)
     _register_context_commands(registry)
+    _register_task_commands(registry)
 
 
 # ---------------------------------------------------------------------------
@@ -195,4 +196,20 @@ def _register_context_commands(registry: CommandRegistry) -> None:
     registry.register(SlashCommand(
         name="context", description="Show context chain and tape info", handler=_handle_context,
         aliases=["ctx"], category="context",
+    ))
+
+
+# ---------------------------------------------------------------------------
+# Tasks
+# ---------------------------------------------------------------------------
+
+
+def _register_task_commands(registry: CommandRegistry) -> None:
+    async def _handle_tasks(args: str, ctx: CommandContext) -> str | None:
+        ctx.renderer.render_tasks(ctx.channel.runtime.workspace)
+        return None
+
+    registry.register(SlashCommand(
+        name="tasks", description="Show task list", handler=_handle_tasks,
+        aliases=["t"], category="context",
     ))

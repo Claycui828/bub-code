@@ -141,11 +141,25 @@ class TestListPanels:
 class TestLiveEvents:
     def test_sub_agent_events_create_panels(self) -> None:
         r = _make_renderer()
-        r.live_event("sub_agent.start", {"description": "test", "agent_id": "a-1", "prompt": "do stuff"})
+        r.live_event("sub_agent.start", {"description": "test", "agent_id": "a-1", "agent_type": "explore", "prompt": "do stuff"})
+        # start no longer creates a panel — it prints a header line
+        assert len(r.panels) == 0
         r.live_event("sub_agent.end", {"agent_id": "a-1", "status": "completed", "result": "done"})
-        assert len(r.panels) == 2
-        assert "Sub-agent" in r.panels[0].title
-        assert r.panels[1].style == "green"
+        # end creates a result panel
+        assert len(r.panels) == 1
+        assert r.panels[0].style == "green"
+        assert "a-1" in r.panels[0].title
+
+    def test_sub_agent_tool_events_render(self) -> None:
+        r = _make_renderer()
+        r.live_event("sub_agent.start", {"agent_id": "a-1", "agent_type": "explore", "description": "test", "prompt": "hi"})
+        r.live_event("sub_agent.tool.start", {"agent_id": "a-1", "name": "fs.grep", "args_summary": "pattern='def'"})
+        r.live_event("sub_agent.tool.end", {"agent_id": "a-1", "name": "fs.grep", "status": "ok", "elapsed_ms": 50, "output_preview": "3 lines"})
+        r.live_event("sub_agent.step.start", {"agent_id": "a-1", "step": 2})
+        r.live_event("sub_agent.think.start", {"agent_id": "a-1", "step": 2})
+        output = _output(r)
+        assert "a-1" in output
+        assert "fs.grep" in output
 
     def test_step_start_does_not_create_panel(self) -> None:
         r = _make_renderer()

@@ -8,9 +8,9 @@ import pytest
 from republic import ToolContext
 
 from bub.tools.agent import (
-    BUILTIN_AGENT_TYPES,
     _DENIED_SUBAGENT_TOOLS,
     _READ_ONLY_TOOLS,
+    BUILTIN_AGENT_TYPES,
     get_agent_manager,
     register_agent_tools,
 )
@@ -23,10 +23,32 @@ class _FakeLoopResult:
     error: str | None = None
 
 
+class _FakeModelRunner:
+    def set_live_callback(self, cb: Any) -> None:
+        pass
+
+
+class _FakeTape:
+    class _tape:
+        name = "test-tape"
+
+    _store = type("_store", (), {"read": staticmethod(lambda _name: [])})()
+
+
+class _FakeSession:
+    model_runner = _FakeModelRunner()
+    tape = _FakeTape()
+
+
 class _FakeRuntime:
     def __init__(self) -> None:
         self._sessions: dict[str, Any] = {}
         self.handle_input = AsyncMock(return_value=_FakeLoopResult(assistant_output="sub-agent done"))
+
+    def get_session(self, session_id: str, **kwargs: Any) -> _FakeSession:
+        session = _FakeSession()
+        self._sessions[session_id] = session
+        return session
 
     def remove_session(self, session_id: str, *, keep_tape: bool = True) -> None:
         self._sessions.pop(session_id, None)
@@ -360,7 +382,7 @@ class TestAgentBackground:
         record = mgr.get("agent-1")
         assert record is not None
         assert record.status == "completed"
-        assert record.result == "bg done"
+        assert "bg done" in record.result
 
     @pytest.mark.asyncio
     async def test_background_error_captured(self) -> None:
