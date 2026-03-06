@@ -141,7 +141,9 @@ class TestListPanels:
 class TestLiveEvents:
     def test_sub_agent_events_create_panels(self) -> None:
         r = _make_renderer()
-        r.live_event("sub_agent.start", {"description": "test", "agent_id": "a-1", "agent_type": "explore", "prompt": "do stuff"})
+        r.live_event(
+            "sub_agent.start", {"description": "test", "agent_id": "a-1", "agent_type": "explore", "prompt": "do stuff"}
+        )
         # start no longer creates a panel — it prints a header line
         assert len(r.panels) == 0
         r.live_event("sub_agent.end", {"agent_id": "a-1", "status": "completed", "result": "done"})
@@ -152,9 +154,17 @@ class TestLiveEvents:
 
     def test_sub_agent_tool_events_render(self) -> None:
         r = _make_renderer()
-        r.live_event("sub_agent.start", {"agent_id": "a-1", "agent_type": "explore", "description": "test", "prompt": "hi"})
-        r.live_event("sub_agent.tool.start", {"agent_id": "a-1", "name": "fs.grep", "args_summary": "pattern='def'"})
-        r.live_event("sub_agent.tool.end", {"agent_id": "a-1", "name": "fs.grep", "status": "ok", "elapsed_ms": 50, "output_preview": "3 lines"})
+        r.live_event(
+            "sub_agent.start", {"agent_id": "a-1", "agent_type": "explore", "description": "test", "prompt": "hi"}
+        )
+        r.live_event(
+            "sub_agent.tool.start",
+            {"agent_id": "a-1", "name": "fs.grep", "description": "Search for function definitions"},
+        )
+        r.live_event(
+            "sub_agent.tool.end",
+            {"agent_id": "a-1", "name": "fs.grep", "status": "ok", "elapsed_ms": 50, "output_preview": "3 lines"},
+        )
         r.live_event("sub_agent.step.start", {"agent_id": "a-1", "step": 2})
         r.live_event("sub_agent.think.start", {"agent_id": "a-1", "step": 2})
         output = _output(r)
@@ -168,10 +178,10 @@ class TestLiveEvents:
 
     def test_tool_start_renders(self) -> None:
         r = _make_renderer()
-        r.live_event("tool.start", {"name": "bash", "args_summary": "cmd=ls"})
+        r.live_event("tool.start", {"name": "bash", "description": "List files in current directory"})
         output = _output(r)
         assert "bash" in output
-        assert "cmd=ls" in output
+        assert "List files in current directory" in output
 
     def test_tool_end_success_renders(self) -> None:
         r = _make_renderer()

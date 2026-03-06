@@ -159,10 +159,13 @@ class ModelRunner:
             self._emit_live("think.start", {"step": state.step, "model": self._model})
             with tracer.span(f"loop.step.{state.step}", metadata={"model": self._model, "step": state.step}):
                 response = await self._chat(state.prompt)
-            self._emit_live("think.end", {
-                "step": state.step,
-                "has_tool_calls": response.followup_prompt is not None,
-            })
+            self._emit_live(
+                "think.end",
+                {
+                    "step": state.step,
+                    "has_tool_calls": response.followup_prompt is not None,
+                },
+            )
             if response.error is not None:
                 state.error = response.error
                 await self._tape.append_event(
@@ -281,9 +284,7 @@ class ModelRunner:
                 if output.tool_calls:
                     gen_output["tool_calls"] = output.tool_calls
                 if output.tool_results:
-                    gen_output["tool_results"] = [
-                        str(r)[:4096] if r is not None else None for r in output.tool_results
-                    ]
+                    gen_output["tool_results"] = [str(r)[:4096] if r is not None else None for r in output.tool_results]
 
                 gen_span.end(
                     output=gen_output or result.text or result.error,
@@ -385,6 +386,22 @@ def _runtime_contract() -> str:
         - NEVER guess arguments for unfamiliar tools — always discover first, then call.
         - You may expand multiple tools at once: '$web_search $schedule_add'.
         </tool_discovery>
+        <tool_description>
+        IMPORTANT: Every tool call MUST include a non-empty 'description' parameter.
+        This is the ONLY text shown to the user for each action — without it, the user sees nothing.
+        The description must be a brief, human-readable explanation of what this specific call does and why.
+        Examples:
+        - bash: description="Run pytest to verify the auth module changes"
+        - fs.read: description="Read the config file to check database settings"
+        - fs.edit: description="Fix the off-by-one error in pagination logic"
+        - fs.grep: description="Find all usages of deprecated API endpoint"
+        - agent: description="Search codebase for authentication patterns"
+        - web.search: description="Find documentation for FastAPI middleware"
+        Rules:
+        - NEVER leave description empty — always explain the intent
+        - Keep it concise (under 80 chars), action-oriented, specific to the current task
+        - Do NOT write generic descriptions like "run command" or "read file" — explain WHY
+        </tool_description>
         <tool_preference>
         Always prefer dedicated tools over bash for file operations. This is CRITICAL:
         - Read files: use fs.read (NOT bash cat/head/tail/sed)

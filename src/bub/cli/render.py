@@ -89,8 +89,8 @@ class CliRenderer:
 
     def _render_tool_start(self, data: dict) -> None:
         name = data.get("name", "?")
-        args_summary = data.get("args_summary", "")
-        self.console.print(Text(f"  \U0001f527 {name}: {args_summary}", style="dim green"))
+        desc = data.get("description", "")
+        self.console.print(Text(f"  \U0001f527 {name}: {desc}", style="dim green"))
 
     def _render_tool_end(self, data: dict) -> None:
         name = data.get("name", "?")
@@ -122,7 +122,7 @@ class CliRenderer:
         name = data.get("name", "")
         summary = data.get("summary", "")
         self.console.print()
-        self.console.print(Text(f"  \U0001f4cc anchor: \"{name}\"", style="bold yellow"))
+        self.console.print(Text(f'  \U0001f4cc anchor: "{name}"', style="bold yellow"))
         if summary:
             self.console.print(Text(f"     {summary}", style="dim yellow"))
         self.console.print()
@@ -167,8 +167,8 @@ class CliRenderer:
     def _render_sub_agent_tool_start(self, data: dict) -> None:
         agent_id = data.get("agent_id", "?")
         name = data.get("name", "?")
-        args_summary = data.get("args_summary", "")
-        self.console.print(Text(f"  \u2502 {agent_id}  \U0001f527 {name}: {args_summary}", style="dim green"))
+        desc = data.get("description", "")
+        self.console.print(Text(f"  \u2502 {agent_id}  \U0001f527 {name}: {desc}", style="dim green"))
 
     def _render_sub_agent_tool_end(self, data: dict) -> None:
         agent_id = data.get("agent_id", "?")
@@ -216,7 +216,9 @@ class CliRenderer:
 
     # -- panel management --
 
-    def _add_panel(self, title: str, body: str, style: str, *, kind: str = "generic", metadata: dict | None = None) -> None:
+    def _add_panel(
+        self, title: str, body: str, style: str, *, kind: str = "generic", metadata: dict | None = None
+    ) -> None:
         idx = len(self.panels)
         panel = OutputPanel(index=idx, title=title, body=body, style=style, kind=kind, metadata=metadata or {})
         self.panels.append(panel)

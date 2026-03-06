@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 import pytest
 
-from pathlib import Path
-
-from bub.mcp.client import McpClientManager, McpServerConfig, load_mcp_configs, parse_mcp_configs
+from bub.mcp.client import McpClientManager, load_mcp_configs, parse_mcp_configs
 
 
 class TestParseConfigs:

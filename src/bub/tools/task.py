@@ -1,4 +1,3 @@
-
 """Task management tools."""
 
 from __future__ import annotations
@@ -17,8 +16,12 @@ TASK_FILE_NAME = "tasks.json"
 
 
 class TaskCreateInput(BaseModel):
-    title: str = Field(..., description="Short, actionable task title (e.g. 'Implement user auth', 'Fix login redirect bug')")
-    description: str = Field(default="", description="Detailed description with requirements, acceptance criteria, or implementation notes")
+    title: str = Field(
+        ..., description="Short, actionable task title (e.g. 'Implement user auth', 'Fix login redirect bug')"
+    )
+    detail: str = Field(
+        default="", description="Detailed description with requirements, acceptance criteria, or implementation notes"
+    )
 
 
 class TaskGetInput(BaseModel):
@@ -36,7 +39,7 @@ class TaskUpdateInput(BaseModel):
     task_id: str = Field(..., description="8-character task ID to update")
     status: str | None = Field(default=None, description="New status: pending, in_progress, completed, blocked")
     title: str | None = Field(default=None, description="Updated task title")
-    description: str | None = Field(default=None, description="Updated task description")
+    detail: str | None = Field(default=None, description="Updated task description")
 
 
 class TaskDeleteInput(BaseModel):
@@ -93,7 +96,7 @@ def register_task_tools(registry: ToolRegistry, *, workspace: Path) -> None:
         task: dict[str, Any] = {
             "id": task_id,
             "title": params.title,
-            "description": params.description,
+            "description": params.detail,
             "status": "pending",
             "created_at": time.time(),
             "updated_at": time.time(),
@@ -156,8 +159,8 @@ def register_task_tools(registry: ToolRegistry, *, workspace: Path) -> None:
                 task["status"] = params.status
             if params.title is not None:
                 task["title"] = params.title
-            if params.description is not None:
-                task["description"] = params.description
+            if params.detail is not None:
+                task["description"] = params.detail
             task["updated_at"] = time.time()
             _save_tasks(workspace, tasks)
             return f"updated: {params.task_id} status={task['status']}"

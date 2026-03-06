@@ -13,7 +13,7 @@ from functools import wraps
 from typing import Any, cast
 
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from republic import Tool, ToolContext, tool_from_model
 
 # Type for live output callback: (event_type, data)
@@ -35,6 +35,32 @@ def _shorten_text(text: str, width: int = 30, placeholder: str = "...") -> str:
         return placeholder
 
     return text[:available] + placeholder
+
+
+def _ensure_description_field(model: type[BaseModel]) -> type[BaseModel]:
+    """Ensure the model has a 'description' field for operation explanation.
+
+    If the model already has a 'description' field, return it unchanged.
+    Otherwise, dynamically create a subclass with the field added.
+    """
+    if "description" in model.model_fields:
+        return model
+    ns = {
+        "__annotations__": {"description": str},
+        "description": Field(default="", description="Brief explanation of what this specific tool call does and why"),
+    }
+    return type(f"{model.__name__}_", (model,), ns)
+
+
+def _output_preview(result: Any) -> str:
+    """Build a short preview string from a tool result."""
+    output_str = str(result) if result else ""
+    lines = output_str.splitlines()
+    if len(lines) > 1:
+        return f"{len(lines)} lines"
+    if len(output_str) > 80:
+        return f"{len(output_str)} chars"
+    return _shorten_text(output_str, width=60)
 
 
 @dataclass(frozen=True)
@@ -76,6 +102,43 @@ class ToolRegistry:
         if self._live_callback:
             self._live_callback(event, data)
 
+    def _wrap_handler[**P, T](
+        self,
+        func: Callable[P, T | Awaitable[T]],
+        *,
+        name: str,
+        context: bool,
+    ) -> Callable[..., Awaitable[T]]:
+        """Wrap a tool handler with logging and description stripping."""
+
+        @wraps(func)
+        async def handler(*args: P.args, **kwargs: P.kwargs) -> T:
+            context_arg = kwargs.get("context") if context else None
+            call_kwargs = {key: value for key, value in kwargs.items() if key != "context"}
+            if args and isinstance(args[0], BaseModel):
+                call_kwargs.update(args[0].model_dump())
+            call_kwargs.pop("description", None)
+            if not self._live_callback:
+                self._log_tool_call(name, call_kwargs, cast("ToolContext | None", context_arg))
+
+            start = time.monotonic()
+            try:
+                result = func(*args, **kwargs)
+                if inspect.isawaitable(result):
+                    result = await result
+            except Exception:
+                if not self._live_callback:
+                    logger.exception("tool.call.error name={}", name)
+                raise
+            else:
+                return result
+            finally:
+                duration = time.monotonic() - start
+                if not self._live_callback:
+                    logger.info("tool.call.end name={} duration={:.3f}ms", name, duration * 1000)
+
+        return handler
+
     def register(
         self,
         *,
@@ -97,35 +160,23 @@ class ToolRegistry:
             ):
                 return None
 
-            @wraps(func)
-            async def handler(*args: P.args, **kwargs: P.kwargs) -> T:
-                context_arg = kwargs.get("context") if context else None
-                call_kwargs = {key: value for key, value in kwargs.items() if key != "context"}
-                if args and isinstance(args[0], BaseModel):
-                    call_kwargs.update(args[0].model_dump())
-                self._log_tool_call(name, call_kwargs, cast("ToolContext | None", context_arg))
-
-                start = time.monotonic()
-                try:
-                    result = func(*args, **kwargs)
-                    if inspect.isawaitable(result):
-                        result = await result
-                except Exception:
-                    logger.exception("tool.call.error name={}", name)
-                    raise
-                else:
-                    return result
-                finally:
-                    duration = time.monotonic() - start
-                    logger.info("tool.call.end name={} duration={:.3f}ms", name, duration * 1000)
+            handler = self._wrap_handler(func, name=name, context=context)
 
             if model is not None:
-                tool = tool_from_model(model, handler, name=name, description=short_description, context=context)
+                extended_model = _ensure_description_field(model)
+                tool = tool_from_model(
+                    extended_model, handler, name=name, description=short_description, context=context
+                )
             else:
                 tool = Tool.from_callable(handler, name=name, description=short_description, context=context)
             tool_desc = ToolDescriptor(
-                name=name, short_description=short_description, detail=tool_detail, tool=tool, source=source,
-                always_expand=always_expand, guidance=guidance,
+                name=name,
+                short_description=short_description,
+                detail=tool_detail,
+                tool=tool,
+                source=source,
+                always_expand=always_expand,
+                guidance=guidance,
             )
             self._tools[name] = tool_desc
             return tool_desc
@@ -191,6 +242,50 @@ class ToolRegistry:
         lines.append(f"schema: {schema}")
         return "\n".join(lines)
 
+    def _make_live_handler(self, tool_name: str, original_handler: Any) -> Any:
+        """Wrap a tool handler to emit live events during Republic's automatic dispatch."""
+
+        @wraps(original_handler)
+        async def _live_handler(*args: Any, **kwargs: Any) -> Any:
+            desc = ""
+            if args and isinstance(args[0], BaseModel):
+                desc = getattr(args[0], "description", "") or ""
+            elif "description" in kwargs:
+                desc = str(kwargs.get("description", ""))
+
+            self._emit_live("tool.start", {"name": tool_name, "description": desc})
+            start = time.monotonic()
+            try:
+                result = original_handler(*args, **kwargs)
+                if inspect.isawaitable(result):
+                    result = await result
+            except Exception as exc:
+                elapsed_ms = (time.monotonic() - start) * 1000
+                self._emit_live(
+                    "tool.error",
+                    {
+                        "name": tool_name,
+                        "error": _shorten_text(str(exc), width=80),
+                        "elapsed_ms": elapsed_ms,
+                    },
+                )
+                raise
+            else:
+                elapsed_ms = (time.monotonic() - start) * 1000
+                preview = _output_preview(result)
+                self._emit_live(
+                    "tool.end",
+                    {
+                        "name": tool_name,
+                        "status": "ok",
+                        "elapsed_ms": elapsed_ms,
+                        "output_preview": preview,
+                    },
+                )
+                return result
+
+        return _live_handler
+
     def model_tools(self) -> builtins.list[Tool]:
         tools: builtins.list[Tool] = []
         seen_names: set[str] = set()
@@ -201,12 +296,14 @@ class ToolRegistry:
             seen_names.add(model_name)
 
             base = descriptor.tool
+            live_handler = self._make_live_handler(descriptor.name, base.handler)
+
             tools.append(
                 Tool(
                     name=model_name,
                     description=base.description,
                     parameters=base.parameters,
-                    handler=base.handler,
+                    handler=live_handler,
                     context=base.context,
                 )
             )
@@ -243,12 +340,10 @@ class ToolRegistry:
         if descriptor is None:
             raise KeyError(name)
 
-        # Build a human-readable args summary for live display.
+        # Extract description for live display.
         call_kwargs = {key: value for key, value in kwargs.items() if key != "context"}
-        args_summary = ", ".join(
-            f"{k}={_shorten_text(str(v), width=40)}" for k, v in call_kwargs.items()
-        )
-        self._emit_live("tool.start", {"name": name, "args_summary": args_summary})
+        description = str(call_kwargs.pop("description", "") or "")
+        self._emit_live("tool.start", {"name": name, "description": description})
 
         tracer = current_tracer()
         start_time = time.monotonic()
@@ -262,29 +357,27 @@ class ToolRegistry:
             except Exception as exc:
                 elapsed_ms = (time.monotonic() - start_time) * 1000
                 span.end(output=str(exc), level="ERROR")
-                self._emit_live("tool.error", {
-                    "name": name,
-                    "error": _shorten_text(str(exc), width=80),
-                    "elapsed_ms": elapsed_ms,
-                })
+                self._emit_live(
+                    "tool.error",
+                    {
+                        "name": name,
+                        "error": _shorten_text(str(exc), width=80),
+                        "elapsed_ms": elapsed_ms,
+                    },
+                )
                 raise
             else:
                 elapsed_ms = (time.monotonic() - start_time) * 1000
                 span.end(output=str(result)[:4096] if result else None)
 
-                # Build output preview for live display.
-                output_str = str(result) if result else ""
-                lines = output_str.splitlines()
-                if len(lines) > 1:
-                    preview = f"{len(lines)} lines"
-                elif len(output_str) > 80:
-                    preview = f"{len(output_str)} chars"
-                else:
-                    preview = _shorten_text(output_str, width=60)
-                self._emit_live("tool.end", {
-                    "name": name,
-                    "status": "ok",
-                    "elapsed_ms": elapsed_ms,
-                    "output_preview": preview,
-                })
+                preview = _output_preview(result)
+                self._emit_live(
+                    "tool.end",
+                    {
+                        "name": name,
+                        "status": "ok",
+                        "elapsed_ms": elapsed_ms,
+                        "output_preview": preview,
+                    },
+                )
                 return result
