@@ -66,9 +66,9 @@ trace_enabled: true
 trace_backend: "langfuse"  # langfuse | otel
 
 # Langfuse
-langfuse_public_key: "pk-lf-abf2d10d-71f0-4d4c-8be6-98a7b45578ad"
-langfuse_secret_key: "sk-lf-f152ea56-ebee-4c17-ab5a-ebd0364fc2c2"
-langfuse_host: "https://cloud.langfuse.com"
+# langfuse_public_key: "pk-lf-..."
+# langfuse_secret_key: "sk-lf-..."
+# langfuse_host: "https://cloud.langfuse.com"
 
 # OpenTelemetry
 otel_service_name: "bub"
