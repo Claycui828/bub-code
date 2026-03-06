@@ -1,4 +1,4 @@
-# Bub
+# Bub Code
 
 [![Release](https://img.shields.io/github/v/release/bubbuild/bub)](https://github.com/bubbuild/bub/releases)
 [![Build status](https://img.shields.io/github/actions/workflow/status/bubbuild/bub/main.yml?branch=main)](https://github.com/bubbuild/bub/actions/workflows/main.yml?query=branch%3Amain)
