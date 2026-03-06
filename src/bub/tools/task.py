@@ -1,3 +1,4 @@
+
 """Task management tools."""
 
 from __future__ import annotations
@@ -113,6 +114,7 @@ def register_task_tools(registry: ToolRegistry, *, workspace: Path) -> None:
         name="task.list",
         short_description="List all tasks with optional status filter",
         model=TaskListInput,
+        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Checking progress on multi-step work. Reviewing what's pending or blocked.",
             when_not_to="No active task list exists — check first with an unfiltered list.",
