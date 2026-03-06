@@ -374,8 +374,17 @@ def _runtime_contract() -> str:
         3. If a compatibility fallback is required, runtime can still parse comma commands.
         4. Never emit '<command ...>' blocks yourself; those are runtime-generated.
         5. When enough evidence is collected, return plain natural language answer.
-        6. Use '$name' hints to request detail expansion for tools/skills when needed.
         </runtime_contract>
+        <tool_discovery>
+        The <tool_view> above lists all available tools with short descriptions.
+        Some tools show full schema in <tool_details> (always-expanded core tools).
+        For OTHER tools (especially MCP tools prefixed with mcp__), you must discover their arguments BEFORE calling them:
+        - Write '$tool_name' in your response to expand its full schema, guidance, and examples.
+        - Example: writing '$mcp__feishu__search_doc' will reveal its parameters in the next turn.
+        - You can also call tool.describe with the tool name for immediate details.
+        - NEVER guess arguments for unfamiliar tools — always discover first, then call.
+        - You may expand multiple tools at once: '$web_search $schedule_add'.
+        </tool_discovery>
         <tool_preference>
         Always prefer dedicated tools over bash for file operations. This is CRITICAL:
         - Read files: use fs.read (NOT bash cat/head/tail/sed)

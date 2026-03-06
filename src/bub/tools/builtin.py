@@ -501,6 +501,7 @@ def register_builtin_tools(
         name="fs.edit",
         short_description="Find and replace text in an existing file",
         model=EditInput,
+        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Targeted modifications to existing files — changing function signatures, fixing bugs, updating config values.",
             when_not_to="Creating new files (use fs.write). The old text must exist exactly as specified.",
@@ -535,6 +536,7 @@ def register_builtin_tools(
         name="fs.grep",
         short_description="Search file contents by regex pattern",
         model=GrepInput,
+        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Searching for patterns across files: function definitions, imports, string literals, error messages, TODOs.",
             when_not_to="Finding files by name (use fs.glob). Reading a known file (use fs.read). Running shell commands (use bash).",
@@ -564,6 +566,7 @@ def register_builtin_tools(
         name="fs.glob",
         short_description="Find files matching a glob pattern",
         model=GlobInput,
+        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Finding files by name pattern: discovering project structure, locating config files, finding test files.",
             when_not_to="Searching file contents (use fs.grep). Reading a known file (use fs.read). Listing directory contents (use bash ls).",
@@ -605,7 +608,7 @@ def register_builtin_tools(
         name="web.fetch",
         short_description="Fetch a URL and return content as text",
         model=FetchInput,
-        always_expand=True,
+        always_expand=False,
         guidance=ToolGuidance(
             when_to_use="Reading web pages, API documentation, or fetching remote resources.",
             when_not_to="Searching the web for information (use web.search first to find URLs).",
@@ -730,7 +733,7 @@ def register_builtin_tools(
         name="web.search",
         short_description="Search the web using Exa, Brave, or Ollama",
         model=SearchInput,
-        always_expand=True,
+        always_expand=False,
         guidance=ToolGuidance(
             when_to_use="Finding information, documentation, articles, or URLs on the internet.",
             when_not_to="Reading a known URL (use web.fetch). Searching local files (use fs.grep).",
@@ -778,12 +781,12 @@ def register_builtin_tools(
             "  ,quit\n"
         )
 
-    @register(name="tools", short_description="List available tools", model=EmptyInput)
+    @register(name="tools", short_description="List available tools", model=EmptyInput, always_expand=True)
     def list_tools(_params: EmptyInput) -> str:
         """List all tools in compact mode."""
         return "\n".join(registry.compact_rows())
 
-    @register(name="tool.describe", short_description="Show tool detail", model=ToolNameInput)
+    @register(name="tool.describe", short_description="Show tool detail", model=ToolNameInput, always_expand=True)
     def tool_describe(params: ToolNameInput) -> str:
         """Expand one tool description and schema."""
         return registry.detail(params.name)
@@ -839,7 +842,7 @@ def register_builtin_tools(
         await tape.handoff(anchor_name, state=state or None)
         return f"handoff created: {anchor_name}"
 
-    @register(name="tape.anchors", short_description="List tape anchors", model=EmptyInput, always_expand=True)
+    @register(name="tape.anchors", short_description="List tape anchors", model=EmptyInput)
     async def anchors(_params: EmptyInput) -> str:
         """List recent tape anchors."""
         rows = []
@@ -851,7 +854,6 @@ def register_builtin_tools(
         name="tape.info",
         short_description="Show tape context size and anchor status",
         model=EmptyInput,
-        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Checking how much context has been used. Deciding whether a tape.handoff is needed.",
             when_not_to="No need to check routinely — check when context feels large or before a complex phase.",
@@ -895,7 +897,7 @@ def register_builtin_tools(
         runtime.reset_session_context(context.state.get("session_id", ""))
         return result
 
-    @register(name="skills.list", short_description="List skills", model=EmptyInput, always_expand=True)
+    @register(name="skills.list", short_description="List skills", model=EmptyInput)
     def list_skills(_params: EmptyInput) -> str:
         """List all discovered skills in compact form."""
         skills = runtime.discover_skills()

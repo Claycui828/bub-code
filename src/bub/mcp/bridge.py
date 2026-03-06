@@ -82,6 +82,7 @@ def _register_one(
         detail=info.description,
         model=model,
         source=f"mcp:{server_name}",
+        always_expand=False,
         guidance=ToolGuidance(
             constraints=f"Provided by MCP server '{server_name}'. Arguments are forwarded as-is.",
         ),

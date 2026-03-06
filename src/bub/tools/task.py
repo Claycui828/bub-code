@@ -75,6 +75,7 @@ def register_task_tools(registry: ToolRegistry, *, workspace: Path) -> None:
         name="task.create",
         short_description="Create a new task with title and description",
         model=TaskCreateInput,
+        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Breaking complex work into trackable steps. The user asks you to plan multi-step work.",
             when_not_to="Simple one-shot tasks that don't need tracking. Tasks you can complete immediately.",
@@ -114,7 +115,6 @@ def register_task_tools(registry: ToolRegistry, *, workspace: Path) -> None:
         name="task.list",
         short_description="List all tasks with optional status filter",
         model=TaskListInput,
-        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Checking progress on multi-step work. Reviewing what's pending or blocked.",
             when_not_to="No active task list exists — check first with an unfiltered list.",
@@ -138,6 +138,7 @@ def register_task_tools(registry: ToolRegistry, *, workspace: Path) -> None:
         name="task.update",
         short_description="Update task status, title, or description",
         model=TaskUpdateInput,
+        always_expand=True,
         guidance=ToolGuidance(
             when_to_use="Marking a task as in_progress when starting, completed when done, or blocked when waiting.",
             constraints="Only one task should be in_progress at a time. Mark tasks completed immediately after finishing.",

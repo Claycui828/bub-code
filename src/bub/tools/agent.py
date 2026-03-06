@@ -406,7 +406,7 @@ def register_agent_tools(
     class AgentStatusInput(BaseModel):
         agent_id: str = Field(..., description="Agent ID to check (e.g. 'agent-1')")
 
-    @register(name="agent.status", short_description="Check sub-agent status and result", model=AgentStatusInput)
+    @register(name="agent.status", short_description="Check sub-agent status and result", model=AgentStatusInput, always_expand=True)
     def agent_status(params: AgentStatusInput) -> str:
         """Check the status and result of a sub-agent by its ID."""
         record = manager.get(params.agent_id)
@@ -434,7 +434,7 @@ def register_agent_tools(
     class AgentListInput(BaseModel):
         pass
 
-    @register(name="agent.list", short_description="List all sub-agents with status", model=AgentListInput)
+    @register(name="agent.list", short_description="List all sub-agents with status", model=AgentListInput, always_expand=True)
     def agent_list(_params: AgentListInput) -> str:
         """List all sub-agent invocations with their type and status."""
         records = manager.list_agents()
