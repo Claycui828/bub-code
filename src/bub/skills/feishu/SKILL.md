@@ -99,7 +99,7 @@ cd <SKILL_DIR> && uv run scripts/feishu_send.py react \
 | Arg | Required | Description |
 |-----|----------|-------------|
 | `--message-id` | Yes | Message to react to (om_xxx) |
-| `--emoji` | Yes | Emoji type: THUMBSUP, OK, HEART, SMILE, EYES, FIRE, JIAYI, CLAP, MUSCLE |
+| `--emoji` | Yes | Emoji type (see full list below) |
 
 ## Inbound Message Format
 
@@ -183,6 +183,60 @@ The background agent has full tool access and can send results to Feishu when do
 | `react` | Quick ack/feedback | N/A |
 
 Note: lark_md does NOT support ``` code fences. Use \`inline code\` or send code as plain text.
+
+## Available Emoji Types
+
+### Recommended for Agent Use
+
+| Emoji | Type | When to Use |
+|-------|------|-------------|
+| 👍 | `THUMBSUP` | Acknowledged, will do |
+| 👌 | `OK` | Simple confirmation |
+| 👀 | `GLANCE` | Looking into it |
+| 💪 | `MUSCLE` | Working on it |
+| ✅ | `DONE` | Task completed |
+| ❌ | `CrossMark` | Failed / rejected |
+| 🔥 | `Fire` | Great, impressive |
+| 🎉 | `PARTY` | Celebration, success |
+| 👏 | `CLAP` | Well done |
+| 🤝 | `FISTBUMP` | Agreement, deal |
+| ❤️ | `HEART` | Appreciation |
+| 🚀 | `STRIVE` | Let's go, pushing forward |
+| 💯 | `Hundred` | Perfect, 100% |
+| 🏆 | `Trophy` | Achievement |
+| ⏰ | `Alarm` | Reminder, time-sensitive |
+| 📌 | `Pin` | Important, pinned |
+| 🔔 | `Loudspeaker` | Announcement |
+| ➕ | `JIAYI` | +1, agree |
+| ➖ | `MinusOne` | -1, disagree |
+| 💡 | `StatusFlashOfInspiration` | Idea, insight |
+| 🤔 | `THINKING` | Considering |
+| 😅 | `SWEAT` | Awkward, oops |
+| 🙏 | `THANKS` | Thank you |
+| 👋 | `WAVE` | Hello / goodbye |
+| 🫡 | `SALUTE` | Roger that |
+
+### Full List (all valid types)
+
+**Gestures:** `THUMBSUP`, `ThumbsDown`, `OK`, `THANKS`, `MUSCLE`, `FINGERHEART`, `APPLAUSE`, `FISTBUMP`, `JIAYI`, `CLAP`, `PRAISE`, `WAVE`, `HIGHFIVE`, `SHAKE`, `SALUTE`, `SLIGHT`
+
+**Faces — Positive:** `SMILE`, `BLUSH`, `LAUGH`, `SMIRK`, `LOL`, `LOVE`, `WINK`, `PROUD`, `JOYFUL`, `WOW`, `YEAH`, `KISS`, `SMOOCH`, `DROOL`, `OBSESSED`, `HUG`, `BeamingFace`, `Delighted`, `Partying`, `ThanksFace`, `SaluteFace`
+
+**Faces — Neutral:** `THINKING`, `WITTY`, `SMART`, `FACEPALM`, `INNOCENTSMILE`, `CHUCKLE`, `SHY`, `DULL`, `EYESCLOSED`, `SILENT`, `Shrug`, `ClownFace`, `FullMoonFace`
+
+**Faces — Negative:** `SCOWL`, `SOB`, `CRY`, `ANGRY`, `TEARS`, `EMBARRASSED`, `WHIMPER`, `WRONGED`, `WAIL`, `BLUBBER`, `FROWN`, `CRAZY`, `DIZZY`, `LOOKDOWN`, `SWEAT`, `SPEECHLESS`, `SICK`, `PUKE`, `TERROR`, `PETRIFIED`, `SHOCKED`, `SKULL`, `ColdSweat`
+
+**Actions:** `TEASE`, `SHOWOFF`, `COMFORT`, `TRICK`, `ENOUGH`, `MONEY`, `NOSEPICK`, `HAUGHTY`, `SLAP`, `SPITBLOOD`, `TOASTED`, `GLANCE`, `SHHH`, `SMUG`, `HAMMER`, `BETRAYED`, `SLEEP`, `DROWSY`, `YAWN`, `STRIVE`, `XBLUSH`, `WHAT`, `RoarForYou`
+
+**Objects:** `HEART`, `HEARTBROKEN`, `ROSE`, `LIPS`, `BEER`, `CAKE`, `GIFT`, `Coffee`, `BubbleTea`, `Drumstick`, `Pepper`, `CUCUMBER`, `CANDIEDHAWS`, `Lemon`, `BOMB`, `POOP`, `CLEAVER`, `Soccer`, `Basketball`
+
+**Symbols:** `DONE`, `CrossMark`, `CheckMark`, `Yes`, `No`, `Hundred`, `MinusOne`, `OKR`, `LGTM`, `Pin`, `Alarm`, `Loudspeaker`, `Trophy`, `Fire`, `Music`, `FIREWORKS`, `REDPACKET`, `18X`
+
+**Status:** `GeneralDoNotDisturb`, `GeneralInMeetingBusy`, `StatusReading`, `GeneralBusinessTrip`, `GeneralWorkFromHome`, `StatusEnjoyLife`, `GeneralSun`, `GeneralMoonRest`, `StatusFlashOfInspiration`
+
+**Animals & Seasonal:** `HUSKY`, `CALF`, `BEAR`, `BULL`, `RAINBOWPUKE`, `MoonRabbit`, `Mooncake`, `HappyDragon`, `Snowman`, `XmasTree`, `XmasHat`, `Pumpkin`, `StickyRiceBalls`, `FIRECRACKER`, `FORTUNE`, `LUCK`
+
+**Special:** `PARTY`, `HEADSET`, `VRHeadset`, `TV`, `Movie`, `EatingFood`, `MeMeMe`, `Sigh`, `Typing`, `Get`, `OnIt`, `OneSecond`, `YouAreTheBest`, `GoGoGo`, `UPPERLEFT`
 
 ## Error Handling
 
